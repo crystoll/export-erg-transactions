@@ -1,0 +1,13 @@
+# Python basic stuff
+__pycache__
+.python-version
+.pytest_cache
+
+# Python dotenv file, do not check to git because contains wallet information
+.env 
+
+
+# Data files, results
+*.json
+*.csv
+.~lock.*
