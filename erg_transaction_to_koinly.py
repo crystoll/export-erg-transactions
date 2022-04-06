@@ -104,6 +104,6 @@ if __name__ == '__main__':
     print(f'Processed {len(exported_rows)} csv rows')
     df = pd.DataFrame(exported_rows)
     df.sort_values(by=['Date'], inplace=True, ascending=False)
-    df.to_csv('basic_transactions.csv', index=False,
+    df.to_csv('transactions.csv', index=False,
               quoting=csv.QUOTE_NONNUMERIC)
-    print('Succesfully wrote to basic_transactions.csv')
+    print('Succesfully wrote to transactions.csv')
