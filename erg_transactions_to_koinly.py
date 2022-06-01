@@ -69,9 +69,15 @@ def process_rows(addresses, all_transactions):
         received_currency = ''
         fee_amount = ''
         fee_currency = ''
+        description = 'imported from ergo explorer'
 
         if count_of_outgoing > 0:
             sent_amount = my_inputs_total_value - my_outputs_total_value - fees
+            # Consolidating to own wallet causes rounding errors that show as scientific notation
+            # To simplify, let's set them to 0
+            if sent_amount < 0.0000000000001:
+                sent_amount = 0
+                description = 'Consolidated money within wallet, just the fee'
             sent_currency='ERG'
             fee_amount = fees
             fee_currency = 'ERG'
@@ -91,7 +97,7 @@ def process_rows(addresses, all_transactions):
             'Net Worth Amount': '',  # Not used (value of moneys)
             'Net Worth Currency': '',  # Not used (value of moneys)
             'Label': '',  # Possible values outgoing: gift, lost, cost, margin fee, realized gain, possible values incoming: airdrop, fork, mining, reward, income, loan interest, realized gain
-            'Description': 'imported from ergo explorer',  # Freeform description
+            'Description': description,  # Freeform description
             'TxHash': transaction['id'],
         })
     return exported_rows

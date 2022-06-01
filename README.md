@@ -22,4 +22,5 @@ You can get a pretty good idea from tool imports, but at least:
 pip install requests
 pip install pandas
 pip install dotenv
+pip install jinja2
 ```
