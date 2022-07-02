@@ -7,10 +7,10 @@ Can be easily modified for any other format as well.
 ## How to use?
 
 1) Copy sample_dotenv by name .env
-2) Edit it and set your ERG wallet addresses (comma-separated list). For best results, include all addresses your wallet is using (otherwise it cannot track internal transfers correctly)
+2) Edit it and set nice environment variable names, and comma-separated list of your wallet addresses. For best results, include all addresses your wallet is using (otherwise it cannot track internal transfers correctly). Currently the code uses two env variables, but adjust both .env file and the code to your likings (See the main function at the bottom of the file).
 3) Run the tool:
-    python3 erg_transactions_to_koinly.py
-4) Observe a basic_transactions.csv file getting created
+    python3 export_all.py
+4) Observe transaction .csv files getting created
 
 ## Prerequisites
 
