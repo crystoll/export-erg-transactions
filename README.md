@@ -7,7 +7,7 @@ Can be easily modified for any other format as well.
 ## How to use?
 
 1) Copy sample_dotenv by name .env
-2) Edit it and set nice environment variable names, and comma-separated list of your wallet addresses. For best results, include all addresses your wallet is using (otherwise it cannot track internal transfers correctly). Currently the code uses two env variables, but adjust both .env file to add any number of wallets.
+2) Edit it and set nice environment variable names, and comma-separated list of your wallet addresses. For best results, include all addresses your wallet is using (otherwise it cannot track internal transfers correctly). Currently the code uses two env variables, adjust .env file to add any number of wallets.
 3) Run the tool:
     python3 export_all.py
 4) Observe transaction .csv files getting created
