@@ -14,13 +14,9 @@ Can be easily modified for any other format as well.
 
 ## Prerequisites
 
-Need to have Python 3
-Need to have some Python libs installed, with pip.
-You can get a pretty good idea from tool imports, but at least:
+Python 3
+The `requirements.txt` file lists all Python libraries the script depends on.  They can be installed using:
 
-```bash
-pip install requests
-pip install pandas
-pip install dotenv
-pip install jinja2
+```
+pip install -r requirements.txt
 ```
