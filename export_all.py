@@ -206,6 +206,9 @@ def transactions_to_file(addresses, filename):
     print(f'After deduplication, we have {len(all_transactions)} transactions')
     exported_rows = process_transactions(addresses, all_transactions)
     print(f'Processed {len(exported_rows)} csv rows')
+    if len(exported_rows) == 0:
+        print(f'Zero transactions, skipping file output for {filename}.')
+        return    
     df = pd.DataFrame(exported_rows)
     df.sort_values(by=['Date'], inplace=True, ascending=False)
     df.to_csv(filename, index=False,
@@ -219,6 +222,9 @@ def token_transactions_to_file(addresses, filename):
     print(f'After deduplication, we have {len(all_transactions)} transactions')
     exported_rows = process_tokens(addresses, all_transactions)
     print(f'Processed {len(exported_rows)} csv rows')
+    if len(exported_rows) == 0:
+        print(f'Zero token transactions, skipping file output for {filename}.')
+        return
     df = pd.DataFrame(exported_rows)
     df.sort_values(by=['Date'], inplace=True, ascending=False)
     df.to_csv(filename, index=False,
