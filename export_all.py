@@ -6,7 +6,6 @@ import dotenv
 import os
 import csv
 
-dotenv.load_dotenv()
 
 main_url = 'https://api.ergoplatform.com'
 addresses_url = '/api/v1/addresses/'
@@ -68,18 +67,37 @@ def process_transactions(addresses, all_transactions):
         received_currency = ''
         fee_amount = ''
         fee_currency = ''
+        label = ''
         description = 'imported from ergo explorer'
 
         if count_of_outgoing > 0:
             sent_amount = my_inputs_total_value - my_outputs_total_value - fees
             # Consolidating to own wallet causes rounding errors that show as scientific notation
             # To simplify, let's set them to 0
-            if sent_amount < 0.0000000000001:
-                sent_amount = 0
-                description = 'Consolidated money within wallet, just the fee'
             sent_currency = 'ERG'
             fee_amount = fees
             fee_currency = 'ERG'
+            if sent_amount < 0.0000000000001:
+                #sent_amount = my_inputs_total_value - fees 
+                sent_amount = my_outputs_total_value
+                received_amount = 0
+                description = 'Consolidated money within wallet, just the fee'
+                # add second receiving transaction so koinly will see sent + received transaction which can then be merged in koinly
+                exported_rows.append({
+                    'Date': format_timestamp_to_utf_iso8601(transaction['timestamp']),
+                    'Sent Amount': 0,
+                    'Sent Currency': '',
+                    'Received Amount': my_outputs_total_value,
+                    'Received Currency': 'ERG',
+                    'Fee Amount': 0,
+                    'Fee Currency': fee_currency,
+                    'Net Worth Amount': '',  # Not used (value of moneys)
+                    'Net Worth Currency': '',  # Not used (value of moneys)
+                    'Label': label,  # Possible values outgoing: gift, lost, cost, margin fee, realized gain, possible values incoming: airdrop, fork, mining, reward, income, loan interest, realized gain
+                    'Description': description,  # Freeform description
+                    'TxHash': transaction['id'],
+                })
+
         elif count_of_incoming > 0:
             received_amount = my_outputs_total_value
             received_currency = 'ERG'
@@ -96,7 +114,7 @@ def process_transactions(addresses, all_transactions):
             'Fee Currency': fee_currency,
             'Net Worth Amount': '',  # Not used (value of moneys)
             'Net Worth Currency': '',  # Not used (value of moneys)
-            'Label': '',  # Possible values outgoing: gift, lost, cost, margin fee, realized gain, possible values incoming: airdrop, fork, mining, reward, income, loan interest, realized gain
+            'Label': label,  # Possible values outgoing: gift, lost, cost, margin fee, realized gain, possible values incoming: airdrop, fork, mining, reward, income, loan interest, realized gain
             'Description': description,  # Freeform description
             'TxHash': transaction['id'],
         })
@@ -125,7 +143,7 @@ def process_tokens(addresses, all_transactions):
         df_combined = pd.concat([df_outgoing, df_incoming])
 
         df_summed = df_combined.groupby(
-            ['name', 'tokenId', 'type', 'decimals']).sum().reset_index()
+            ['name', 'tokenId', 'type', 'decimals']).sum(numeric_only=False).reset_index()
         #print(f'Token sums: {df_summed}')
         records = df_summed.to_dict('records')
         #print(f'Token sums: {records}')
@@ -209,10 +227,8 @@ def token_transactions_to_file(addresses, filename):
 
 
 if __name__ == '__main__':
-    yoroi_addresses = os.getenv('YOROI_WALLET_ADDRESSES').split(',')
-    transactions_to_file(yoroi_addresses, 'yoroi.csv')
-    token_transactions_to_file(yoroi_addresses, 'yoroi_tokens.csv')
-
-    mobile_addresses = os.getenv('MOBILE_WALLET_ADDRESSES').split(',')
-    transactions_to_file(mobile_addresses, 'mobile.csv')
-    token_transactions_to_file(mobile_addresses, 'mobile_tokens.csv')
+    wallets = dict(dotenv.dotenv_values('.env'))
+    for wallet in wallets:
+        addresses = wallets[wallet].split(',')
+        transactions_to_file(addresses,f'{wallet}.csv')
+        token_transactions_to_file(addresses, f'{wallet}_tokens.csv')
