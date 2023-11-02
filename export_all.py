@@ -36,8 +36,7 @@ def fetch_transactions(base_url, addresses):
             offset += 20
             items += response['items']
     print(f'Fetched {len(items)} transactions')
-    transactions_by_id = {transaction['id']
-        : transaction for transaction in items}
+    transactions_by_id = {transaction['id']: transaction for transaction in items}
     return transactions_by_id
 
 
@@ -78,7 +77,7 @@ def process_transactions(addresses, all_transactions):
             fee_amount = fees
             fee_currency = 'ERG'
             if sent_amount < 0.0000000000001:
-                #sent_amount = my_inputs_total_value - fees 
+                # sent_amount = my_inputs_total_value - fees
                 sent_amount = my_outputs_total_value
                 received_amount = 0
                 description = 'Consolidated money within wallet, just the fee'
@@ -144,9 +143,9 @@ def process_tokens(addresses, all_transactions):
 
         df_summed = df_combined.groupby(
             ['name', 'tokenId', 'type', 'decimals']).sum(numeric_only=False).reset_index()
-        #print(f'Token sums: {df_summed}')
+        # print(f'Token sums: {df_summed}')
         records = df_summed.to_dict('records')
-        #print(f'Token sums: {records}')
+        # print(f'Token sums: {records}')
 
         for asset in records:
             if asset['amount'] > 0:
@@ -208,7 +207,10 @@ def transactions_to_file(addresses, filename):
     print(f'Processed {len(exported_rows)} csv rows')
     if len(exported_rows) == 0:
         print(f'Zero transactions, skipping file output for {filename}.')
-        return    
+        return
+    if os.path.isfile(filename):
+        print(f'File {filename} already exists, renaming to {filename}.bak')
+        os.rename(filename, filename + '.bak')
     df = pd.DataFrame(exported_rows)
     df.sort_values(by=['Date'], inplace=True, ascending=False)
     df.to_csv(filename, index=False,
@@ -225,6 +227,10 @@ def token_transactions_to_file(addresses, filename):
     if len(exported_rows) == 0:
         print(f'Zero token transactions, skipping file output for {filename}.')
         return
+
+    if os.path.isfile(filename):
+        print(f'File {filename} already exists, renaming to {filename}.bak')
+        os.rename(filename, filename + '.bak')
     df = pd.DataFrame(exported_rows)
     df.sort_values(by=['Date'], inplace=True, ascending=False)
     df.to_csv(filename, index=False,
@@ -236,5 +242,5 @@ if __name__ == '__main__':
     wallets = dict(dotenv.dotenv_values('.env'))
     for wallet in wallets:
         addresses = wallets[wallet].split(',')
-        transactions_to_file(addresses,f'{wallet}.csv')
+        transactions_to_file(addresses, f'{wallet}.csv')
         token_transactions_to_file(addresses, f'{wallet}_tokens.csv')

@@ -10,4 +10,5 @@ __pycache__
 # Data files, results
 *.json
 *.csv
+*.bak
 .~lock.*
