@@ -20,3 +20,9 @@ The `requirements.txt` file lists all Python libraries the script depends on.  T
 ```
 pip install -r requirements.txt
 ```
+
+### Changelog
+
+13.10.2025: Refactor and cleanup, updated libraries, added progress meter for larger amounts of transactions
+once upon the time: Initial release
+
