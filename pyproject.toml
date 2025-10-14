@@ -1,0 +1,53 @@
+[tool.poetry]
+name = "export-erg-transactions"
+version = "1.0.0"
+description = "Export Ergo blockchain transactions to CSV format for tax/accounting purposes"
+authors = ["Your Name <your.email@example.com>"]
+readme = "README.md"
+license = "MIT"
+packages = [{include = "export_all.py"}]
+
+[tool.poetry.dependencies]
+python = "^3.12"
+pandas = "^2.3.3"
+requests = "^2.32.5"
+python-dotenv = "^1.1.1"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.0.0"
+pytest-cov = "^6.0.0"
+pytest-mock = "^3.14.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "--verbose",
+    "--cov=.",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+]
+
+[tool.coverage.run]
+source = ["."]
+omit = [
+    "tests/*",
+    "*/site-packages/*",
+    "*/__pycache__/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]

@@ -283,6 +283,20 @@ class KoinlyCSVSchema:
             cls.DESCRIPTION: description,
             cls.TX_HASH: transaction['id'],
         }
+    
+    @classmethod
+    def create_token_description(cls, asset_name: str, token_id: str, asset_type: str) -> str:
+        """Create a standardized description for token transactions.
+        
+        Args:
+            asset_name: Name of the token
+            token_id: Token ID
+            asset_type: Type of the asset
+            
+        Returns:
+            Formatted token description string
+        """
+        return f'Token {asset_name} {token_id} {asset_type}'
 
 
 def filter_transaction_inputs_outputs(transaction: Dict[str, Any], addresses: List[str]) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]], List[Dict[str, Any]]]:
@@ -450,82 +464,131 @@ def process_transactions(addresses, all_transactions):
     return exported_rows
 
 
-def process_tokens(addresses, all_transactions):
+def extract_transaction_assets(transaction: Dict[str, Any], addresses: List[str]) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    """Extract assets from transaction inputs and outputs that belong to our wallet.
+    
+    Args:
+        transaction: Transaction data dictionary
+        addresses: List of wallet addresses to filter for
+        
+    Returns:
+        Tuple of (outgoing_assets, incoming_assets)
+    """
+    inputs_from_my_wallet = [
+        input for input in transaction['inputs'] if input['address'] in addresses
+    ]
+    outputs_to_my_wallet = [
+        output for output in transaction['outputs'] if output['address'] in addresses
+    ]
+    
+    outgoing_assets = [
+        asset for input in inputs_from_my_wallet for asset in input['assets']
+    ]
+    incoming_assets = [
+        asset for output in outputs_to_my_wallet for asset in output['assets']
+    ]
+    
+    return outgoing_assets, incoming_assets
+
+
+def calculate_net_token_amounts(outgoing_assets: List[Dict[str, Any]], 
+                               incoming_assets: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Calculate net token amounts by combining outgoing and incoming assets.
+    
+    Args:
+        outgoing_assets: List of outgoing asset dictionaries
+        incoming_assets: List of incoming asset dictionaries
+        
+    Returns:
+        List of asset dictionaries with net amounts (negative for outgoing, positive for incoming)
+    """
+    df_outgoing = pd.DataFrame(outgoing_assets, columns=[
+        'name', 'tokenId', 'type', 'decimals', 'amount'
+    ])
+    df_outgoing['amount'] = -df_outgoing['amount']
+    
+    df_incoming = pd.DataFrame(incoming_assets, columns=[
+        'name', 'tokenId', 'type', 'decimals', 'amount'
+    ])
+    
+    df_combined = pd.concat([df_outgoing, df_incoming])
+    
+    df_summed = df_combined.groupby(
+        ['name', 'tokenId', 'type', 'decimals']
+    ).sum(numeric_only=False).reset_index()
+    
+    return df_summed.to_dict('records')
+
+
+def process_token_asset(transaction: Dict[str, Any], asset: Dict[str, Any]) -> Optional[Dict[str, str]]:
+    """Process a single token asset and create a CSV row if amount is non-zero.
+    
+    Args:
+        transaction: Transaction data dictionary
+        asset: Asset dictionary with name, tokenId, type, decimals, and amount
+        
+    Returns:
+        CSV row dictionary if amount is non-zero, None otherwise
+    """
+    if asset['amount'] == 0:
+        return None
+    
+    asset_name = asset['name']
+    asset_tokenid = asset['tokenId']
+    asset_type = asset['type']
+    decimals = asset['decimals']
+    
+    # Validate decimals to prevent division issues
+    if decimals < 0 or decimals > 30:
+        print(f"Warning: Invalid decimals value {decimals} for token {asset_name} ({asset_tokenid}), using 0")
+        decimals = 0
+    
+    amount = abs(asset['amount']) / 10 ** decimals
+    description = KoinlyCSVSchema.create_token_description(asset_name, asset_tokenid, asset_type)
+    
+    if asset['amount'] > 0:
+        # Handle incoming token
+        return create_csv_row(
+            transaction=transaction,
+            received_amount=amount,
+            received_currency=asset_name,
+            description=description
+        )
+    else:  # asset['amount'] < 0
+        # Handle outgoing token
+        return create_csv_row(
+            transaction=transaction,
+            sent_amount=amount,
+            sent_currency=asset_name,
+            description=description
+        )
+
+
+def process_tokens(addresses: List[str], all_transactions: Dict[str, Dict[str, Any]]) -> List[Dict[str, str]]:
+    """Process all token transactions and return CSV rows for export.
+    
+    Args:
+        addresses: List of wallet addresses to process
+        all_transactions: Dictionary mapping transaction IDs to transaction data
+        
+    Returns:
+        List of CSV row dictionaries for token transactions
+    """
     exported_rows = []
+    
     for transaction in all_transactions.values():
-        inputs_from_my_wallet = [
-            input for input in transaction['inputs'] if input['address'] in addresses]
-        outputs_to_my_wallet = [
-            output for output in transaction['outputs'] if output['address'] in addresses]
-        outgoing_assets = [
-            asset for input in inputs_from_my_wallet for asset in input['assets']]
-        incoming_assets = [
-            asset for input in outputs_to_my_wallet for asset in input['assets']]
-
-        df_outgoing = pd.DataFrame(outgoing_assets, columns=[
-                                   'name', 'tokenId', 'type', 'decimals', 'amount'])
-        df_outgoing['amount'] = -df_outgoing['amount']
-
-        df_incoming = pd.DataFrame(incoming_assets, columns=[
-                                   'name', 'tokenId', 'type', 'decimals', 'amount'])
-
-        df_combined = pd.concat([df_outgoing, df_incoming])
-
-        df_summed = df_combined.groupby(
-            ['name', 'tokenId', 'type', 'decimals']).sum(numeric_only=False).reset_index()
-        # print(f'Token sums: {df_summed}')
-        records = df_summed.to_dict('records')
-        # print(f'Token sums: {records}')
-
-        for asset in records:
-            if asset['amount'] > 0:
-                # Handle incoming
-                amount = asset['amount'] / 10 ** asset['decimals']
-                asset_name = asset['name']
-                asset_tokenid = asset['tokenId']
-                asset_type = asset['type']
-                exported_rows.append({
-                    'Date': format_timestamp_to_iso8601(transaction['timestamp']),
-                    'Sent Amount': '',
-                    'Sent Currency': '',
-                    'Received Amount': amount,
-                    'Received Currency': asset_name,
-                    # Not used (because is already contained in ordinary transactions, and same fee (transaction value) covers multiple token assets)
-                    'Fee Amount': '',
-                    'Fee Currency': '',
-                    # Not used (value of moneys)
-                    'Net Worth Amount': '',
-                    # Not used (value of moneys)
-                    'Net Worth Currency': '',
-                    'Label': '',  # Possible values outgoing: gift, lost, cost, margin fee, realized gain, possible values incoming: airdrop, fork, mining, reward, income, loan interest, realized gain
-                    # Freeform description
-                    'Description': f'Token {asset_name} {asset_tokenid} {asset_type}',
-                    'TxHash': transaction['id'],
-                })
-            elif asset['amount'] < 0:
-                # Handle outgoing
-                amount = abs(asset['amount']) / 10 ** asset['decimals']
-                asset_name = asset['name']
-                asset_tokenid = asset['tokenId']
-                asset_type = asset['type']
-                exported_rows.append({
-                    'Date': format_timestamp_to_iso8601(transaction['timestamp']),
-                    'Sent Amount': amount,
-                    'Sent Currency': asset_name,
-                    'Received Amount': '',  # Not used
-                    'Received Currency': '',  # Not used
-                    # Not used (because is already contained in ordinary transactions, and same fee (transaction value) covers multiple token assets)
-                    'Fee Amount': '',
-                    'Fee Currency': '',  # Not used
-                    # Not used (value of moneys)
-                    'Net Worth Amount': '',
-                    # Not used (value of moneys)
-                    'Net Worth Currency': '',
-                    'Label': '',  # Possible values outgoing: gift, lost, cost, margin fee, realized gain, possible values incoming: airdrop, fork, mining, reward, income, loan interest, realized gain
-                    # Freeform description
-                    'Description': f'Token {asset_name} {asset_tokenid} {asset_type}',
-                    'TxHash': transaction['id'],
-                })
+        # Extract assets from transaction
+        outgoing_assets, incoming_assets = extract_transaction_assets(transaction, addresses)
+        
+        # Calculate net token amounts
+        net_assets = calculate_net_token_amounts(outgoing_assets, incoming_assets)
+        
+        # Process each asset and create CSV rows
+        for asset in net_assets:
+            csv_row = process_token_asset(transaction, asset)
+            if csv_row:
+                exported_rows.append(csv_row)
+    
     return exported_rows
 
 
